@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Longo",
+    "slug": "longo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/longo.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "packagerOpts": {
+      "bridgetless": false
+    },
+    "splash": {
+      "image": "./assets/longo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.longo.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/longo.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.longo.app"
+    },
+    "web": {
+      "favicon": "./assets/longo.png"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "newArchEnabled": true,
+      "eas": {
+        "projectId": "5015ab62-45fc-4fbe-a9f7-d93e98344686"
+      }
+    }
+  }
+}
