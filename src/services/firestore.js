@@ -1,13 +1,26 @@
-import { collection, doc, getDoc, getDocs, query, where, orderBy, limit } from '@firebase/firestore';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  updateDoc, 
+  setDoc, 
+  arrayUnion,
+  serverTimestamp 
+} from '@firebase/firestore';
 import { db } from '../firebase';
-import client from '../database/postgres';
 
 export const createProfile = async (userId, data) => {
   try {
-    await client.query(
-      'INSERT INTO users (id, name, email, status) VALUES ($1, $2, $3, $4)',
-      [userId, data.name, data.email, 'pending']
-    );
+    await setDoc(doc(db, 'users', userId), {
+      ...data,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    });
     return data;
   } catch (error) {
     console.error('Error creating profile:', error);
@@ -19,14 +32,10 @@ export const getProfile = (userId) => db.collection('profiles').doc(userId).get(
 
 export const updateProfile = async (userId, data) => {
   try {
-    const setClause = Object.keys(data)
-      .map((key, index) => `${key} = $${index + 1}`)
-      .join(', ');
-    const values = Object.values(data);
-    await client.query(
-      `UPDATE users SET ${setClause} WHERE id = $${values.length + 1}`,
-      [...values, userId]
-    );
+    await updateDoc(doc(db, 'users', userId), {
+      ...data,
+      updatedAt: serverTimestamp()
+    });
     return data;
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -49,25 +58,57 @@ export const getLeaderboard = async () => {
   }
 };
 
-export const addBid = (taskId, bid) => db.collection('tasks').doc(taskId).collection('bids').add(bid);
+export const addBid = async (taskId, bid) => {
+  try {
+    const bidRef = collection(db, 'tasks', taskId, 'bids');
+    const docRef = await addDoc(bidRef, {
+      ...bid,
+      createdAt: serverTimestamp()
+    });
+    return { id: docRef.id, ...bid };
+  } catch (error) {
+    console.error('Error adding bid:', error);
+    throw error;
+  }
+};
 
 export const completeTask = async (taskId, providerId, rating) => {
-    const task = await getTask(taskId);
-    const provider = await getProfile(providerId);
-    const points = provider.data().points + rating;
-    await updateProfile(providerId, { points, tasksCompleted: [...(provider.data().tasksCompleted || []), task.data().details] });
-    await updateTask(taskId, { status: 'completed' });
-  };
-  export const sendNotification = (userId, message) => db.collection('notifications').add({ userId, message, timestamp: new Date().toISOString() });
+  try {
+    const taskRef = doc(db, 'tasks', taskId);
+    const providerRef = doc(db, 'users', providerId);
+    
+    const taskDoc = await getDoc(taskRef);
+    const providerDoc = await getDoc(providerRef);
+    
+    const currentPoints = providerDoc.data()?.points || 0;
+    const taskDetails = taskDoc.data()?.details;
+
+    await updateDoc(providerRef, {
+      points: currentPoints + rating,
+      tasksCompleted: arrayUnion(taskDetails),
+      updatedAt: serverTimestamp()
+    });
+
+    await updateDoc(taskRef, {
+      status: 'completed',
+      completedAt: serverTimestamp(),
+      rating
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error completing task:', error);
+    throw error;
+  }
+};
+
+export const sendNotification = (userId, message) => db.collection('notifications').add({ userId, message, timestamp: new Date().toISOString() });
 
 // Get user profile
 export const getUserProfile = async (userId) => {
   try {
-    const result = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-    if (result.rows.length > 0) {
-      return result.rows[0];
-    }
-    return null;
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    return userDoc.exists() ? userDoc.data() : null;
   } catch (error) {
     console.error('Error fetching user profile:', error);
     return null;

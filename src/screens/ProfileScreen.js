@@ -1,122 +1,73 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { YStack, Text, Image, XStack, Button, ScrollView, useTheme, Input } from 'tamagui';
-import { supabase } from '../supabase';
-import { useNavigation } from '@react-navigation/native';
+import React from 'react';
+import { ScrollView } from 'react-native';
+import { YStack, XStack, Text, Card, Button, Avatar, Separator } from 'tamagui';
+import { Settings, Star, Briefcase, Clock, DollarSign } from '@tamagui/lucide-icons';
 
 const ProfileScreen = () => {
-  const theme = useTheme();
-  const navigation = useNavigation();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [bio, setBio] = useState('');
-
-  useEffect(() => {
-    const loadUserProfile = async () => {
-      setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (error) throw error;
-          setProfile(data);
-          setName(data.name);
-          setEmail(data.email);
-          setBio(data.bio || '');
-        }
-      } catch (error) {
-        Alert.alert('Error', 'Failed to load profile data');
-        console.error('Profile load error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadUserProfile();
-  }, []);
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }],
-      });
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    }
-  };
-
-  if (loading) {
-    return (
-      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor={theme.name === 'dark' ? '#000' : '#fff'}>
-        <ActivityIndicator size="large" color="#EAAA00" />
-      </YStack>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView>
-        <YStack flex={1} padding="$4" backgroundColor={theme.name === 'dark' ? '#000' : '#fff'}>
-          <Image source={{ uri: profile?.photoURL || 'https://via.placeholder.com/150' }} style={{ width: 150, height: 150, borderRadius: 75, alignSelf: 'center' }} />
-          <Text fontSize={24} fontWeight="bold" textAlign="center" marginTop="$4">Profile</Text>
+    <ScrollView>
+      <YStack padding="$4" space="$4">
+        {/* Profile Header */}
+        <Card bordered padding="$4">
+          <YStack space="$3" alignItems="center">
+            <Avatar circular size="$8" />
+            <Text fontSize="$6" fontWeight="bold">John Doe</Text>
+            <Text color="$gray9">Full Stack Developer</Text>
+            <XStack space="$4">
+              <XStack space="$1" alignItems="center">
+                <Star size={16} color="$yellow10" />
+                <Text>4.9</Text>
+              </XStack>
+              <XStack space="$1" alignItems="center">
+                <Briefcase size={16} />
+                <Text>43 Projects</Text>
+              </XStack>
+            </XStack>
+          </YStack>
+        </Card>
 
-          <Input
-            placeholder="Name"
-            value={name}
-            onChangeText={setName}
-            marginBottom="$2"
-          />
+        {/* Stats */}
+        <XStack space="$2">
+          <Card flex={1} bordered padding="$3">
+            <YStack alignItems="center">
+              <Text fontSize="$6" fontWeight="bold">$2350.50</Text>
+              <Text color="$gray9">Earnings</Text>
+            </YStack>
+          </Card>
+          <Card flex={1} bordered padding="$3">
+            <YStack alignItems="center">
+              <Text fontSize="$6" fontWeight="bold">2,450</Text>
+              <Text color="$gray9">Points</Text>
+            </YStack>
+          </Card>
+        </XStack>
 
-          <Input
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            marginBottom="$2"
-          />
+        {/* Portfolio */}
+        <Text fontSize="$6" fontWeight="bold">Portfolio</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <XStack space="$2">
+            {[1, 2, 3].map((item) => (
+              <Card key={item} width={200} height={150}>
+                <Image
+                  source={{ uri: `https://picsum.photos/200/150?random=${item}` }}
+                  width={200}
+                  height={150}
+                />
+              </Card>
+            ))}
+          </XStack>
+        </ScrollView>
 
-          <Input
-            placeholder="Bio"
-            value={bio}
-            onChangeText={setBio}
-            marginBottom="$4"
-          />
-
-          <Button
-            backgroundColor="#EAAA00"
-            color="#000000"
-            size="$5"
-            borderRadius={12}
-            onPress={() => Alert.alert('Success', 'Profile updated!')}
-            pressStyle={{ opacity: 0.8 }}
-          >
-            <Text fontSize={16} fontWeight="bold" color="#000000">Update Profile</Text>
-          </Button>
-
-          <Button
-            backgroundColor="#FF0000"
-            color="#FFFFFF"
-            size="$5"
-            borderRadius={12}
-            onPress={handleSignOut}
-            marginTop="$4"
-            pressStyle={{ opacity: 0.8 }}
-          >
-            <Text fontSize={16} fontWeight="bold" color="#FFFFFF">Sign Out</Text>
-          </Button>
-        </YStack>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {/* Settings Button */}
+        <Button 
+          icon={Settings}
+          variant="outlined"
+          marginTop="$4"
+        >
+          Account Settings
+        </Button>
+      </YStack>
+    </ScrollView>
   );
 };
 

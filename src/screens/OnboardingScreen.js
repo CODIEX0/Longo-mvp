@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { YStack, Text, TextInput, Button, useTheme, Image, KeyboardAvoidingView, Platform } from 'tamagui';
-import { supabase } from '../supabase';
+import { Platform, KeyboardAvoidingView } from 'react-native';
+import { YStack, Text, Button, Input, useTheme } from 'tamagui';
+import { auth, db } from '../firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 const OnboardingScreen = ({ navigation }) => {
   const theme = useTheme();
@@ -9,58 +12,99 @@ const OnboardingScreen = ({ navigation }) => {
   const [occupation, setOccupation] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleFinish = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = auth.currentUser;
     if (!user) return;
 
+    setLoading(true);
     try {
-      await supabase
-        .from('users')
-        .insert([
-          {
-            id: user.id,
-            name: `${name} ${surname}`,
-            occupation,
-            bio,
-            location,
-            points: 0,
-            tasksCompleted: [],
-            createdAt: new Date().toISOString(),
-          },
-        ]);
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        name: `${name} ${surname}`,
+        occupation,
+        bio,
+        location,
+        onboardingCompleted: true,
+        updatedAt: serverTimestamp()
+      });
 
       navigation.replace('Home');
     } catch (error) {
-      console.error('Error creating profile:', error);
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <YStack flex={1} padding="$4" backgroundColor={theme.name === 'dark' ? '#000' : '#fff'}>
-        <Image source={require('../../assets/longo.png')} style={{ width: 150, height: 150, alignSelf: 'center' }} />
-        <Text fontSize={24} fontWeight="bold" textAlign="center" marginBottom="$4">Create Your Profile</Text>
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
-        <TextInput placeholder="Name" value={name} onChangeText={setName} marginBottom="$2" />
-        <TextInput placeholder="Surname" value={surname} onChangeText={setSurname} marginBottom="$2" />
-        <TextInput placeholder="Occupation (optional)" value={occupation} onChangeText={setOccupation} marginBottom="$2" />
-        <TextInput placeholder="Bio (optional)" value={bio} onChangeText={setBio} marginBottom="$2" />
-        <TextInput placeholder="Location" value={location} onChangeText={setLocation} marginBottom="$4" />
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <YStack
+        flex={1}
+        padding="$4"
+        space="$4"
+        backgroundColor={theme.background.val}
+      >
+        <Text fontSize="$8" fontWeight="bold">
+          Complete Your Profile
+        </Text>
+        <Text fontSize="$5" color="$gray10">
+          Let's get to know you better
+        </Text>
+
+        <YStack space="$4" marginTop="$4">
+          <Input
+            placeholder="First Name"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+          <Input
+            placeholder="Last Name"
+            value={surname}
+            onChangeText={setSurname}
+            autoCapitalize="words"
+          />
+          <Input
+            placeholder="Occupation"
+            value={occupation}
+            onChangeText={setOccupation}
+          />
+          <Input
+            placeholder="Bio"
+            value={bio}
+            onChangeText={setBio}
+            multiline
+            numberOfLines={4}
+            height={100}
+          />
+          <Input
+            placeholder="Location"
+            value={location}
+            onChangeText={setLocation}
+          />
+        </YStack>
 
         <Button
-          backgroundColor="#EAAA00"
-          color="#000000"
-          size="$5"
-          borderRadius={12}
+          theme="active"
           onPress={handleFinish}
-          pressStyle={{ opacity: 0.8 }}
+          disabled={!name || !surname}
+          marginTop="auto"
         >
-          <Text fontSize={16} fontWeight="bold" color="#000000">Finish</Text>
+          Complete Profile
         </Button>
       </YStack>
     </KeyboardAvoidingView>
   );
 };
 
-export default On
+export default OnboardingScreen;

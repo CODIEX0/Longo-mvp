@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Appearance } from 'react-native';
-import { Platform, KeyboardAvoidingView, Alert } from 'react-native';
+import { Appearance, Platform, KeyboardAvoidingView, Alert } from 'react-native';
 import { YStack, Image, Text, Button, Input, XStack, useTheme } from 'tamagui';
+import { auth, db } from '../../firebase';
 import { 
-  signIn, 
-  signInWithGoogle, 
-  signInWithFacebook, 
-  signInWithTwitter 
-} from '../../services/auth';
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Feather } from '@expo/vector-icons';
 
 // Determine the current color scheme
@@ -28,7 +30,28 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      await signIn(email, password);
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Get user profile from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
+      if (!userDoc.exists()) {
+        throw new Error('User profile not found');
+      }
+
+      const userData = userDoc.data();
+      
+      // Check if user needs to complete onboarding
+      if (!userData.onboardingCompleted) {
+        navigation.replace('Onboarding');
+        return;
+      }
+
+      // Check if user account is active
+      if (userData.status !== 'active') {
+        throw new Error('Account is not active. Please contact support.');
+      }
+
       navigation.replace('MainTabs');
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -40,22 +63,39 @@ const LoginScreen = ({ navigation }) => {
   const handleSocialLogin = async (provider) => {
     setSocialLoading(true);
     try {
-      let user;
+      let result;
       
       switch (provider) {
         case 'google':
-          user = await signInWithGoogle();
+          const googleProvider = new GoogleAuthProvider();
+          if (Platform.OS === 'web') {
+            result = await signInWithPopup(auth, googleProvider);
+          } else {
+            await signInWithRedirect(auth, googleProvider);
+            result = await getRedirectResult(auth);
+          }
+          
+          if (result?.user) {
+            // Check if user profile exists in Firestore
+            const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+            
+            if (!userDoc.exists()) {
+              // Create new user profile if it doesn't exist
+              await setDoc(doc(db, 'users', result.user.uid), {
+                email: result.user.email,
+                name: result.user.displayName,
+                photoURL: result.user.photoURL,
+                status: 'active',
+                createdAt: serverTimestamp(),
+                onboardingCompleted: false
+              });
+              navigation.replace('Onboarding');
+              return;
+            }
+
+            navigation.replace('MainTabs');
+          }
           break;
-        case 'facebook':
-          user = await signInWithFacebook();
-          break;
-        case 'twitter':
-          user = await signInWithTwitter();
-          break;
-      }
-      
-      if (user) {
-        navigation.replace('MainTabs');
       }
     } catch (error) {
       Alert.alert('Authentication Error', error.message);

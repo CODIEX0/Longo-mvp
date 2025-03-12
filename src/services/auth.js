@@ -8,10 +8,9 @@ import {
   signInWithRedirect,
   getRedirectResult
 } from '@firebase/auth';
-import { auth } from '../firebase';
-import client from '../database/postgres';
+import { auth, db } from '../firebase';
+import { doc, setDoc, getDoc, collection, query, where } from 'firebase/firestore';
 import { Platform } from 'react-native';
-import { firebase, db } from '../firebase';
 
 // Regular email/password auth
 export const signUp = async (email, password, name) => {
@@ -19,22 +18,23 @@ export const signUp = async (email, password, name) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName: name });
     
-    // Create user profile in PostgreSQL
-    await client.query(
-      'INSERT INTO users (id, name, email, status) VALUES ($1, $2, $3, $4)',
-      [userCredential.user.uid, name, email, 'pending']
-    );
+    await setDoc(doc(db, 'users', userCredential.user.uid), {
+      name,
+      email,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
     return userCredential.user;
   } catch (error) {
     throw error;
   }
 };
 
-
 export const signIn = async (email, password) => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
+    const { user } = await signInWithEmailAndPassword(auth, email, password);
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    return { user, profile: userDoc.data() };
   } catch (error) {
     throw error;
   }
@@ -74,21 +74,23 @@ const handleSocialAuth = async (provider, providerName) => {
         createdAt: new Date().toISOString()
       };
       
-      await client.query(
-        'INSERT INTO users (id, name, email, status) VALUES ($1, $2, $3, $4)',
-        [user.uid, userData.name, userData.email, 'pending']
-      );
+      await setDoc(doc(db, 'users', user.uid), {
+        ...userData,
+        status: 'pending'
+      });
     } else {
       // Update existing user profile with latest provider data
       const { user } = userCredential;
-      const existingProfile = await client.query('SELECT * FROM users WHERE id = $1', [user.uid]);
+      const existingProfile = await getDoc(doc(db, 'users', user.uid));
       
-      if (existingProfile.rows.length > 0) {
+      if (existingProfile.exists()) {
         // Only update certain fields from the social provider
-        await client.query(
-          'UPDATE users SET name = $1, email = $2, photoURL = $3, lastLogin = $4 WHERE id = $5',
-          [user.displayName || existingProfile.rows[0].name, user.email || existingProfile.rows[0].email, user.photoURL || existingProfile.rows[0].photoURL, new Date().toISOString(), user.uid]
-        );
+        await setDoc(doc(db, 'users', user.uid), {
+          name: user.displayName || existingProfile.data().name,
+          email: user.email || existingProfile.data().email,
+          photoURL: user.photoURL || existingProfile.data().photoURL,
+          lastLogin: new Date().toISOString()
+        });
       }
     }
     

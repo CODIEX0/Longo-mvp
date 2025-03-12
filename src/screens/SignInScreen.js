@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { YStack, Text, Input, Button, Image } from 'tamagui';
-import { supabase } from '../supabase';
-import { useNavigation } from '@react-navigation/native';
+import { Alert, Platform, KeyboardAvoidingView } from 'react-native';
+import { YStack, Text, Button, Input, XStack, useTheme } from 'tamagui';
+import { auth, db } from '../firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { SocialSignInButtons } from '../components/SocialSignInButtons';
 
-const SignInScreen = () => {
+const SignInScreen = ({ navigation }) => {
+  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigation = useNavigation();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -18,58 +21,102 @@ const SignInScreen = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      navigation.replace('Home'); // Navigate to the home screen after successful sign-in
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
+      if (!userDoc.exists()) {
+        throw new Error('User profile not found');
+      }
+
+      const userData = userDoc.data();
+      
+      // Check if user needs to complete onboarding
+      if (!userData.onboardingCompleted) {
+        navigation.replace('Onboarding');
+        return;
+      }
+
+      // Check if user account is active
+      if (userData.status !== 'active') {
+        throw new Error('Account is not active. Please contact support.');
+      }
+
+      navigation.replace('Home');
     } catch (error) {
+      console.error('Sign in error:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <YStack flex={1} padding="$4" justifyContent="center">
-        <Image source={require('../assets/logo.png')} style={{ width: 150, height: 150, alignSelf: 'center' }} />
-        <Text fontSize={24} fontWeight="bold" textAlign="center" marginBottom="$4">Sign In</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <YStack
+        flex={1}
+        padding="$4"
+        space="$4"
+        backgroundColor={theme.background.val}
+      >
+        <YStack space="$2">
+          <Text fontSize="$8" fontWeight="bold">
+            Welcome Back
+          </Text>
+          <Text fontSize="$5" color="$gray10">
+            Sign in to continue
+          </Text>
+        </YStack>
 
-        <Input
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          marginBottom="$2"
-        />
-
-        <Input
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          marginBottom="$4"
-        />
+        <YStack space="$4" marginTop="$4">
+          <Input
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <Input
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          
+          <Button
+            onPress={() => navigation.navigate('ForgotPassword')}
+            variant="text"
+            alignSelf="flex-end"
+          >
+            Forgot Password?
+          </Button>
+        </YStack>
 
         <Button
-          backgroundColor="#EAAA00"
-          color="#000000"
-          size="$5"
-          borderRadius={12}
+          theme="active"
           onPress={handleSignIn}
-          disabled={loading}
-          pressStyle={{ opacity: 0.8 }}
+          disabled={!email || !password}
+          marginTop="$4"
         >
-          <Text fontSize={16} fontWeight="bold" color="#000000">
-            {loading ? 'Signing In...' : 'Sign In'}
-          </Text>
+          Sign In
         </Button>
 
-        <XStack justifyContent="center" marginTop="$4">
-          <Button variant="text" onPress={() => navigation.navigate('SignUp')}>
-            <Text color="#EAAA00" fontSize={14}>
-              Don't have an account? Sign Up
-            </Text>
+        <SocialSignInButtons />
+
+        <XStack justifyContent="center" space="$2" marginTop="auto">
+          <Text>Don't have an account?</Text>
+          <Button
+            variant="text"
+            theme="active"
+            onPress={() => navigation.navigate('SignUp')}
+          >
+            Sign Up
           </Button>
         </XStack>
       </YStack>

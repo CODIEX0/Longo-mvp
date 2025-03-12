@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Appearance } from 'react-native';
-import { Platform, KeyboardAvoidingView, Alert } from 'react-native';
+import { Appearance, Platform, KeyboardAvoidingView, Alert } from 'react-native';
 import { YStack, Image, Text, Button, Input, XStack, useTheme } from 'tamagui';
-import { supabase } from '../../supabase';
+import { auth, db } from '../../firebase';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Determine the current color scheme
 const colorScheme = Appearance.getColorScheme();
@@ -24,32 +25,20 @@ const SignUpScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user profile in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        firstName,
+        lastName,
         email,
-        password,
-        options: {
-          data: {
-            name: `${firstName} ${lastName}`,
-          },
-        },
+        role: 'client',
+        status: 'active',
+        points: 0,
+        tasksCompleted: [],
+        createdAt: serverTimestamp(),
+        onboardingCompleted: false
       });
-
-      if (error) throw error;
-
-      // Create user profile in Supabase
-      await supabase
-        .from('users')
-        .insert([
-          {
-            id: data.user.id,
-            name: `${firstName} ${lastName}`,
-            email,
-            points: 0,
-            tasksCompleted: [],
-            createdAt: new Date().toISOString(),
-          },
-        ]);
 
       navigation.replace('Onboarding');
     } catch (error) {
@@ -62,19 +51,24 @@ const SignUpScreen = ({ navigation }) => {
   const handleSocialSignIn = async (provider) => {
     setSocialLoading(true);
     try {
-      let user;
-      switch (provider) {
-        case 'google':
-          const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-          });
-          if (error) throw error;
-          user = data.user;
-          break;
-      }
+      const googleProvider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      if (result.user) {
+        // Create user profile in Firestore
+        await setDoc(doc(db, 'users', result.user.uid), {
+          email: result.user.email,
+          firstName: result.user.displayName?.split(' ')[0] || '',
+          lastName: result.user.displayName?.split(' ')[1] || '',
+          role: 'client',
+          status: 'active',
+          points: 0,
+          tasksCompleted: [],
+          createdAt: serverTimestamp(),
+          onboardingCompleted: false
+        });
 
-      if (user) {
-        navigation.replace('MainTabs');
+        navigation.replace('Onboarding');
       }
     } catch (error) {
       Alert.alert('Authentication Error', error.message);

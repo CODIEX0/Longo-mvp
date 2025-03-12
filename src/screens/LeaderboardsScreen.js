@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { YStack, Text, FlatList, useTheme, Image } from 'tamagui';
-import { supabase } from '../supabase';
+import { db } from '../firebase';
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
 const LeaderboardsScreen = () => {
   const [leaders, setLeaders] = useState([]);
@@ -9,13 +10,16 @@ const LeaderboardsScreen = () => {
   useEffect(() => {
     const loadLeaderboard = async () => {
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .order('points', { ascending: false })
-          .limit(10);
-
-        if (error) throw error;
+        const leaderboardRef = query(
+          collection(db, 'users'),
+          orderBy('points', 'desc'),
+          limit(10)
+        );
+        const snapshot = await getDocs(leaderboardRef);
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
         setLeaders(data);
       } catch (error) {
         console.error('Error loading leaderboard:', error);
