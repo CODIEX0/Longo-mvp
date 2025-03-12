@@ -2,22 +2,28 @@ import firebase from 'firebase/app';
 import 'firebase/auth';
 import 'firebase/database';
 
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDJyckPM56ZJtAHJFR3N1Q3WFijf0z4cog",
-  authDomain: "longo-36e06.firebaseapp.com",
-  databaseURL: "https://longo-36e06-default-rtdb.firebaseio.com",
-  projectId: "longo-36e06",
-  storageBucket: "longo-36e06.firebasestorage.app",
-  messagingSenderId: "619076480670",
-  appId: "1:619076480670:web:c392010b29fec44c97158f",
-  measurementId: "G-RE3CW6YDN0"
+  apiKey: "AIzaSyDbizOTP_4n2_HD-UKTV370sqJXogZMeGc",
+  authDomain: "longo-79a99.firebaseapp.com",
+  databaseURL: "https://longo-79a99-default-rtdb.firebaseio.com",
+  projectId: "longo-79a99",
+  storageBucket: "longo-79a99.firebasestorage.app",
+  messagingSenderId: "266656742456",
+  appId: "1:266656742456:web:a3fa826f7e54002d447acd",
+  measurementId: "G-7NRSNVEN34"
 };
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
+const analytics = getAnalytics(app);
 // Initialize Realtime Database
 const db = firebase.database();
 
