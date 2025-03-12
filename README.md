@@ -34,7 +34,7 @@ A React Native marketplace app connecting skilled professionals with clients. Bu
 
 ## 📱 Screenshots
 
-[Add screenshots here]
+
 
 ## 🏗 Project Structure 
 
