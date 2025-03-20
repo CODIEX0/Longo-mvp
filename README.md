@@ -34,19 +34,19 @@ A React Native marketplace app connecting skilled professionals with clients. Bu
 
 ## 📱 Screenshots
 
-[Add screenshots here]
+
 
 ## 🏗 Project Structure 
 
-src/
-├── components/ # Reusable components
-├── navigation/ # Navigation configuration
-├── screens/ # App screens
-│ ├── auth/ # Authentication screens
-│ └── main/ # Main app screens
-├── services/ # Firebase services
-├── firebase.js # Firebase configuration
-└── App.js # Root component
+src/ <br>
+├── components/ # Reusable components <br>
+├── navigation/ # Navigation configuration <br>
+├── screens/ # App screens <br>
+│ ├── auth/ # Authentication screens <br>
+│ └── main/ # Main app screens <br>
+├── services/ # Firebase services <br>
+├── firebase.js # Firebase configuration <br>
+└── App.js # Root component 
 
 
 ## 🚦 Getting Started
