@@ -108,4 +108,55 @@ class TaskService {
   }
 }
 
-export default TaskService; 
+export default TaskService;
+
+// Create a new project
+export const createProject = async (projectData) => {
+  try {
+    const projectRef = await addDoc(collection(db, 'projects'), {
+      ...projectData,
+      status: 'open',
+      createdAt: new Date().toISOString()
+    });
+    return projectRef.id;
+  } catch (error) {
+    console.error('Error creating project:', error);
+    throw error;
+  }
+};
+
+// Get projects for a specific user
+export const getUserProjects = async (userId) => {
+  try {
+    const q = query(
+      collection(db, 'projects'),
+      where('userId', '==', userId)
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    throw error;
+  }
+};
+
+// Get all open projects
+export const getOpenProjects = async () => {
+  try {
+    const q = query(
+      collection(db, 'projects'),
+      where('status', '==', 'open')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error fetching open projects:', error);
+    throw error;
+  }
+}; 

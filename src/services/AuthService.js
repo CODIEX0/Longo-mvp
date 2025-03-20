@@ -2,7 +2,8 @@ import { auth, db } from '../firebase';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import bcrypt from 'bcrypt';
@@ -20,7 +21,7 @@ class AuthService {
         firstName,
         lastName,
         email,
-        role: 'client',
+        role: 'service_provider',
         status: 'active',
         points: 0,
         tasksCompleted: [],
@@ -29,6 +30,7 @@ class AuthService {
 
       return user;
     } catch (error) {
+      console.error('Registration error:', error);
       throw error;
     }
   }
@@ -37,8 +39,14 @@ class AuthService {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       const userDoc = await getDoc(doc(db, 'users', user.uid));
-      return { user, profile: userDoc.data() };
+      
+      if (!userDoc.exists()) {
+        throw new Error('User profile not found');
+      }
+      
+      return userDoc.data();
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   }
@@ -51,7 +59,7 @@ class AuthService {
     return jwt.sign({
       id: user.uid,
       email: user.email,
-      role: 'client',
+      role: 'service_provider',
       status: 'active'
     }, JWT_SECRET, { expiresIn: '24h' });
   }
@@ -71,6 +79,33 @@ class AuthService {
       const result = await db.query(query, [resetToken, expiresAt, email]);
       return result.rows.length > 0;
     } catch (error) {
+      throw error;
+    }
+  }
+
+  static async googleSignIn() {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      if (result.user) {
+        const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+        
+        if (!userDoc.exists()) {
+          await setDoc(doc(db, 'users', result.user.uid), {
+            email: result.user.email,
+            name: result.user.displayName,
+            photoURL: result.user.photoURL,
+            role: 'service_provider',
+            status: 'active',
+            createdAt: new Date().toISOString()
+          });
+        }
+        
+        return result.user;
+      }
+    } catch (error) {
+      console.error('Google sign-in error:', error);
       throw error;
     }
   }
